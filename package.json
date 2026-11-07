@@ -17,6 +17,7 @@
   "scripts": {
     "build": "tsc",
     "prepare": "tsc",
+    "setup": "node dist/index.js setup",
     "start": "node dist/index.js",
     "test": "tsc && node test/e2e.mjs"
   },

@@ -1,12 +1,23 @@
 #!/usr/bin/env node
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { loadConfig } from "./config.js";
+import { loadConfig, userConfigDir } from "./config.js";
+import { runSetup } from "./setup.js";
 import { TargetRegistry } from "./targets.js";
 import { registerTools } from "./tools.js";
 
 const packageFile = (name: string) => fileURLToPath(new URL(`../${name}`, import.meta.url));
+const userTargetsFile = join(userConfigDir(), "targets.json");
+
+const command = process.argv[2];
+if (command === "setup") process.exit(await runSetup(process.env.AAPANEL_TARGETS_FILE || userTargetsFile));
+if (command) {
+  console.error(`Unknown command "${command}". Usage: aapanel-vps [setup]`);
+  process.exit(1);
+}
 
 try {
   process.loadEnvFile(process.env.AAPANEL_ENV_FILE || packageFile(".env"));
@@ -14,13 +25,19 @@ try {
   // No .env next to the package: rely on the environment provided by the MCP client.
 }
 
+// Precedence: AAPANEL_TARGETS_FILE > saved setup > targets.json next to the package > AAPANEL_* variables.
+const targetsFile =
+  process.env.AAPANEL_TARGETS_FILE ||
+  [userTargetsFile, packageFile("targets.json")].find((file) => existsSync(file)) ||
+  userTargetsFile;
+const domainMapFile =
+  process.env.AAPANEL_DOMAIN_MAP_FILE ||
+  (existsSync(targetsFile) ? join(dirname(targetsFile), "domain-map.json") : packageFile("domain-map.json"));
+
 let registry: TargetRegistry;
 try {
-  const config = loadConfig(process.env.AAPANEL_TARGETS_FILE || packageFile("targets.json"));
-  registry = new TargetRegistry(
-    config,
-    process.env.AAPANEL_DOMAIN_MAP_FILE || packageFile("domain-map.json"),
-  );
+  const config = loadConfig(targetsFile);
+  registry = new TargetRegistry(config, domainMapFile);
   console.error(
     `aapanel-vps: ${config.targets.length} target(s) from ${config.source}: ` +
       registry

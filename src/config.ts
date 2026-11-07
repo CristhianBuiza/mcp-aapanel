@@ -1,9 +1,13 @@
 import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { z } from "zod";
+
+export const targetNamePattern = /^[A-Za-z0-9_.-]+$/;
 
 const name = z
   .string()
-  .regex(/^[A-Za-z0-9_.-]+$/, "Target names may only contain letters, digits, '.', '_' and '-'");
+  .regex(targetNamePattern, "Target names may only contain letters, digits, '.', '_' and '-'");
 
 const TargetSchema = z.object({
   name,
@@ -40,6 +44,16 @@ const FileSchema = z.object({
 });
 
 export type TargetConfig = z.infer<typeof TargetSchema>;
+export type TargetsFile = z.input<typeof FileSchema>;
+
+export function userConfigDir(): string {
+  const base =
+    process.env.XDG_CONFIG_HOME ||
+    (process.platform === "win32"
+      ? process.env.APPDATA || join(homedir(), "AppData", "Roaming")
+      : join(homedir(), ".config"));
+  return join(base, "mcp-aapanel");
+}
 
 export interface LoadedConfig {
   targets: TargetConfig[];
@@ -114,7 +128,8 @@ function fromEnvironment(): LoadedConfig {
   });
   if (!target.aapanel && !target.ssh) {
     throw new Error(
-      "No targets configured: create targets.json or set AAPANEL_URL/AAPANEL_API_KEY (and optionally VPS_SSH_*).",
+      'No servers configured yet. Run "npx -y github:CristhianBuiza/mcp-aapanel setup" (or "npm run setup" in a clone), ' +
+        "then reload the MCP server. Alternatively create targets.json or set AAPANEL_URL/AAPANEL_API_KEY (and optionally VPS_SSH_*).",
     );
   }
   return { targets: [target], defaultName: targetName, source: "environment variables" };

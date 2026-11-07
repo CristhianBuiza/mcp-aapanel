@@ -3,10 +3,18 @@
 A [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server for managing one or more servers that run [aaPanel](https://www.aapanel.com), through the panel's API, plus the underlying VPS over SSH. It lets AI agents and any MCP-compatible client (Cursor, Claude Desktop, VS Code, custom agents, etc.) manage websites, domains, SSL, files, databases, FTP, cron jobs and services, and reach any other panel endpoint through a generic call.
 
 - Runs locally over **stdio**; nothing is installed on your servers.
+- **Guided setup:** one command asks for each server's panel URL, API key and SSH login, tests them, and saves them to a private file. No config files to write by hand.
 - **Multi-server:** define several *targets* and the server routes each call to the right one, often automatically from the domain involved.
 - **Read-only mode** per target, so an agent can inspect production without being able to change it.
-- Secrets can live in environment variables and be referenced from config as `"env:VARIABLE"`.
-- Optional **SSH host-key pinning** and private-key redaction for SSL output.
+- Optional **SSH host-key pinning** (the wizard can pin the key for you) and private-key redaction for SSL output.
+
+## Quick start
+
+```bash
+npx -y github:CristhianBuiza/mcp-aapanel setup
+```
+
+Answer the questions, paste the printed snippet into your MCP client config, and reload the client. Details below.
 
 ---
 
@@ -15,18 +23,19 @@ A [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server for man
 1. [Features](#features)
 2. [Requirements](#requirements)
 3. [Enable the aaPanel API](#1-enable-the-aapanel-api)
-4. [Install and build](#2-install-and-build)
-5. [Configuration](#3-configuration)
-   - [Single server (environment variables)](#option-a-single-server-environment-variables)
-   - [Multiple servers (`targets.json`)](#option-b-multiple-servers-targetsjson)
-   - [How a target is chosen](#how-a-target-is-chosen)
+4. [Install](#2-install)
+5. [Run the setup wizard](#3-run-the-setup-wizard)
 6. [Connect it to an MCP client](#4-connect-it-to-an-mcp-client)
-7. [Tools reference](#tools-reference)
-8. [Usage examples](#usage-examples)
-9. [How it works](#how-it-works)
-10. [Security notes](#security-notes)
-11. [Troubleshooting](#troubleshooting)
-12. [Development](#development)
+7. [Advanced configuration](#advanced-configuration)
+   - [The targets file](#the-targets-file)
+   - [Single server from environment variables](#single-server-from-environment-variables)
+   - [How a target is chosen](#how-a-target-is-chosen)
+8. [Tools reference](#tools-reference)
+9. [Usage examples](#usage-examples)
+10. [How it works](#how-it-works)
+11. [Security notes](#security-notes)
+12. [Troubleshooting](#troubleshooting)
+13. [Development](#development)
 
 ---
 
@@ -55,7 +64,7 @@ A [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server for man
 
 ## 1. Enable the aaPanel API
 
-On each panel:
+aaPanel's API authenticates with an **API key**, not with your panel username and password. On each panel:
 
 1. Open **Settings > API interface** and enable it.
 2. Copy the **interface key** (this is your API key).
@@ -65,89 +74,153 @@ On each panel:
    curl https://api.ipify.org
    ```
 
-4. Note the panel URL as **protocol, host and port only**, for example `https://YOUR_SERVER_IP:7800`. Do **not** include the "security entry" path you use to log in from the browser.
+4. Note the panel URL, for example `https://YOUR_SERVER_IP:7800`. If you paste the address you use in the browser, the wizard strips the "security entry" path automatically.
 
 ## 2. Install
 
 `npm install` installs the dependencies **and** compiles the TypeScript (via the `prepare` script), so a single command is enough.
 
-### Option A: clone (recommended)
+### Option A: no clone, run with `npx`
+
+Nothing to install up front. `npx` fetches, builds and caches the server from GitHub the first time it runs. Go straight to the setup wizard:
+
+```bash
+npx -y github:CristhianBuiza/mcp-aapanel setup
+```
+
+### Option B: clone
 
 ```bash
 git clone https://github.com/CristhianBuiza/mcp-aapanel.git && cd mcp-aapanel && npm install
+npm run setup
 ```
 
-Optionally run `npm test` for an end-to-end test against simulated panels (no real server needed). The compiled entry point is `dist/index.js`. With this option, `.env`, `targets.json` and `domain-map.json` live next to the code.
+Optionally run `npm test` for an end-to-end test against simulated panels (no real server needed). The compiled entry point is `dist/index.js`.
 
-### Option B: no clone, run with `npx`
+## 3. Run the setup wizard
 
-Your MCP client can fetch, build and start the server straight from GitHub:
+MCP servers talk to the client over stdin/stdout, so they cannot stop and ask you questions while running. Instead, a one-time **setup command** asks for each value in your terminal, tests it, and saves it:
 
 ```bash
-npx -y github:CristhianBuiza/mcp-aapanel
+npx -y github:CristhianBuiza/mcp-aapanel setup   # option A
+npm run setup                                   # option B, inside the clone
 ```
 
-npm caches the build, so later starts are fast. Because the package lives in npm's cache, pass settings through the MCP client's `env` block, and point `AAPANEL_TARGETS_FILE` (and optionally `AAPANEL_DOMAIN_MAP_FILE` and `AAPANEL_ENV_FILE`) at files in a folder you control.
+For each server it asks, one question at a time (press Enter to accept the value in brackets):
 
-## 3. Configuration
+| Question | Notes |
+| --- | --- |
+| Server name | Defaults to `vps-1`, `vps-2`, ... |
+| Description | Optional |
+| Panel URL | Enter nothing for an SSH-only VPS |
+| API key | Typed input is hidden |
+| Verify the TLS certificate? | Answer `n` for aaPanel's default self-signed certificate |
+| Test the panel connection? | Calls the panel; if it fails you can correct the values or keep them |
+| Set up SSH access? | Optional |
+| SSH host / port / user | Host defaults to the panel's host, port `22`, user `root` |
+| Private key path, or password | Press Enter on the key path to use a password (hidden) instead |
+| Test the SSH connection? | Runs `echo ok`; on success it offers to **pin the server's host key** |
+| Read-only? | The agent can inspect but not change this server |
+| Domains hosted here | Comma-separated; used to route calls automatically |
+| Add another server? | Repeat for as many servers as you have, then pick the default one |
 
-Pick one of two modes. If a `targets.json` file exists it is used; otherwise the server builds a single target from environment variables.
+Example session (placeholders only):
 
-Environment variables can come from a `.env` file in the project root or from the `env` block of your MCP client config. Variables already set by the client are not overridden by `.env`.
+```text
+$ npx -y github:CristhianBuiza/mcp-aapanel setup
+aaPanel MCP setup
 
-### Option A: single server (environment variables)
+Your answers are saved to ~/.config/mcp-aapanel/targets.json (readable only by you).
+aaPanel's API uses an API key, not your panel username and password.
+In the panel, open Settings > API interface: enable it, copy the key,
+and add this machine's public IP to the whitelist.
+
+--- Server 1 ---
+Server name [vps-1]:
+Description (optional): Main server
+Panel URL, e.g. https://203.0.113.10:7800 (Enter = no panel, SSH only): https://203.0.113.10:7800
+API key (hidden):
+Verify the TLS certificate? Answer n for aaPanel's default self-signed certificate (y/N):
+Test the panel connection now? (Y/n):
+Panel connected.
+Set up SSH access to this VPS? (y/N): y
+SSH host [203.0.113.10]:
+SSH port [22]:
+SSH user [root]:
+Private key path (Enter = use a password): ~/.ssh/id_ed25519
+Test the SSH connection now? (Y/n):
+SSH connected.
+Pin the server's host key SHA256:YOUR_HOST_KEY_FINGERPRINT? (Y/n):
+Read-only? The agent can inspect this server but not change it (y/N):
+Domains hosted here, comma-separated (optional): example.com, example.net
+
+Add another server? (y/N):
+
+Saved 1 server(s) to ~/.config/mcp-aapanel/targets.json.
+```
+
+**Where settings are stored:** `~/.config/mcp-aapanel/targets.json` (or `$XDG_CONFIG_HOME/mcp-aapanel/` on Linux, `%APPDATA%\mcp-aapanel\` on Windows), together with `domain-map.json` for domain assignments. The file is created with permissions `600` and lives **outside the repository**, so it can never be committed. Set `AAPANEL_TARGETS_FILE` to use a different path.
+
+**To add servers later**, run setup again and answer `Y` to "Keep them and add another server?". Answer `n` to start over.
+
+If the server is started before setup, it exits with a message telling you to run the setup command; MCP clients show it in their server logs.
+
+## 4. Connect it to an MCP client
+
+The wizard prints the exact snippet to paste. For **Cursor**, add it to `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` (per project), then reload MCP servers.
+
+Option A (`npx`):
+
+```json
+{
+  "mcpServers": {
+    "aapanel-vps": {
+      "command": "npx",
+      "args": ["-y", "github:CristhianBuiza/mcp-aapanel"]
+    }
+  }
+}
+```
+
+Option B (clone), replacing the path with your clone's location:
+
+```json
+{
+  "mcpServers": {
+    "aapanel-vps": {
+      "command": "node",
+      "args": ["/ABSOLUTE/PATH/TO/mcp-aapanel/dist/index.js"]
+    }
+  }
+}
+```
+
+Claude Desktop, VS Code and other stdio MCP clients use the same shape. No credentials are needed in the client config: the server reads the file saved by setup.
+
+### Quick test with the MCP Inspector
 
 ```bash
-cp .env.example .env
+npx @modelcontextprotocol/inspector npx -y github:CristhianBuiza/mcp-aapanel
 ```
 
-| Variable | Required | Default | Description |
-| --- | --- | --- | --- |
-| `AAPANEL_URL` | Yes* | | Panel URL, e.g. `https://YOUR_SERVER_IP:7800` (no security-entry path) |
-| `AAPANEL_API_KEY` | Yes* | | Panel API interface key |
-| `AAPANEL_VERIFY_TLS` | No | `true` | Set `false` if the panel uses aaPanel's default self-signed certificate |
-| `AAPANEL_READ_ONLY` | No | `false` | `true` hides/rejects every tool that changes the server |
-| `AAPANEL_TIMEOUT_MS` | No | `60000` | Per-request timeout in milliseconds |
-| `AAPANEL_TARGET_NAME` | No | `default` | Name given to this single target |
-| `VPS_SSH_HOST` | No | host of `AAPANEL_URL` | SSH host |
-| `VPS_SSH_PORT` | No | `22` | SSH port |
-| `VPS_SSH_USER` | No | `root` | SSH user |
-| `VPS_SSH_KEY` | No | | Path to a private key file |
-| `VPS_SSH_PASSWORD` | No | | SSH password (use a key when possible) |
-| `VPS_SSH_HOST_FINGERPRINT` | No | | Expected host key, `SHA256:...`. Connections to any other key are refused |
+Call `targets_list`, then `aapanel_get_system_info` to confirm the connection. On startup the server logs the loaded targets to stderr, e.g. `aapanel-vps: 2 target(s) from /home/you/.config/mcp-aapanel/targets.json: vps-1 (default), vps-2 (read-only)`.
 
-\* At least the panel (`AAPANEL_URL` + `AAPANEL_API_KEY`) or SSH (`VPS_SSH_KEY` or `VPS_SSH_PASSWORD`) must be configured. If neither SSH secret is set, the SSH tool is not registered.
+---
 
-Example `.env` (placeholders only):
+## Advanced configuration
 
-```dotenv
-AAPANEL_URL=https://YOUR_SERVER_IP:7800
-AAPANEL_API_KEY=YOUR_API_KEY
-AAPANEL_VERIFY_TLS=false
-AAPANEL_READ_ONLY=false
-AAPANEL_TIMEOUT_MS=60000
+The wizard covers most setups. Everything it writes can also be written by hand or supplied through environment variables, for example to keep secrets in your MCP client config.
 
-VPS_SSH_HOST=YOUR_SERVER_IP
-VPS_SSH_PORT=22
-VPS_SSH_USER=root
-VPS_SSH_KEY=/path/to/your/private_key
-VPS_SSH_PASSWORD=
-VPS_SSH_HOST_FINGERPRINT=SHA256:YOUR_HOST_KEY_FINGERPRINT
-```
+Configuration is resolved in this order (first match wins):
 
-To get the host fingerprint:
+1. `AAPANEL_TARGETS_FILE`, if set.
+2. The file saved by `setup` (`~/.config/mcp-aapanel/targets.json`).
+3. `targets.json` next to the package (clone only).
+4. A single server built from the `AAPANEL_*` / `VPS_SSH_*` environment variables (client `env` block or `.env`).
 
-```bash
-ssh-keyscan YOUR_SERVER_IP | ssh-keygen -lf -
-```
+### The targets file
 
-### Option B: multiple servers (`targets.json`)
-
-Each server is a **target** with its own name, panel access, SSH access and list of hosted domains. Copy the example and edit it:
-
-```bash
-cp targets.example.json targets.json
-```
+The wizard writes this format. You can also copy `targets.example.json` and edit it:
 
 ```json
 {
@@ -203,31 +276,38 @@ cp targets.example.json targets.json
 | `targets[].ssh` | `host` (defaults to the panel URL's host), `port` (22), `user` (`root`), `password` **or** `keyPath`, optional `hostFingerprint` |
 | `targets[].domains` | Domains hosted on this server. Subdomains match automatically |
 
-**Secret references:** any string value written as `"env:VARIABLE"` is replaced with that environment variable (from the client `env` block or `.env`). This keeps passwords and keys out of `targets.json`. The server refuses to start if a referenced variable is unset.
+**Secret references:** any string value written as `"env:VARIABLE"` is replaced with that environment variable (from the client `env` block or `.env`), so you can keep passwords and keys out of the file. The server refuses to start if a referenced variable is unset. The wizard stores the values you type directly, in a file only you can read; replace them with `env:` references afterwards if you prefer.
 
-Optional path overrides:
+Path overrides:
 
 | Variable | Description |
 | --- | --- |
-| `AAPANEL_TARGETS_FILE` | Alternative path for `targets.json` |
-| `AAPANEL_DOMAIN_MAP_FILE` | Alternative path for `domain-map.json` (runtime domain assignments) |
-| `AAPANEL_ENV_FILE` | Alternative path for the `.env` file |
+| `AAPANEL_TARGETS_FILE` | Path of the targets file (used by both `setup` and the server) |
+| `AAPANEL_DOMAIN_MAP_FILE` | Path of `domain-map.json` (runtime domain assignments; defaults to the targets file's folder) |
+| `AAPANEL_ENV_FILE` | Path of the `.env` file |
 
-### How a target is chosen
+### Single server from environment variables
 
-Every tool (except the `targets_*` helpers) accepts an optional `target` argument. When it is omitted:
+Without any targets file, the server builds one target from these variables (client `env` block, or `.env` copied from `.env.example` in a clone):
 
-1. If the call is about a domain (for example a site `name`), the server looks for it in assignments made with `targets_assign_domain`, then in each target's `domains` list. The longest matching domain wins, so `shop.example.com` can live on a different server than `example.com`.
-2. Otherwise it searches each panel's website list for the domain (cached for 5 minutes).
-3. If nothing matches, the `default` target is used. If the domain exists on several servers, the call fails and asks for an explicit `target`.
+| Variable | Required | Default | Description |
+| --- | --- | --- | --- |
+| `AAPANEL_URL` | Yes* | | Panel URL, e.g. `https://YOUR_SERVER_IP:7800` (no security-entry path) |
+| `AAPANEL_API_KEY` | Yes* | | Panel API interface key |
+| `AAPANEL_VERIFY_TLS` | No | `true` | Set `false` if the panel uses aaPanel's default self-signed certificate |
+| `AAPANEL_READ_ONLY` | No | `false` | `true` hides/rejects every tool that changes the server |
+| `AAPANEL_TIMEOUT_MS` | No | `60000` | Per-request timeout in milliseconds |
+| `AAPANEL_TARGET_NAME` | No | `default` | Name given to this single target |
+| `VPS_SSH_HOST` | No | host of `AAPANEL_URL` | SSH host |
+| `VPS_SSH_PORT` | No | `22` | SSH port |
+| `VPS_SSH_USER` | No | `root` | SSH user |
+| `VPS_SSH_KEY` | No | | Path to a private key file |
+| `VPS_SSH_PASSWORD` | No | | SSH password (use a key when possible) |
+| `VPS_SSH_HOST_FINGERPRINT` | No | | Expected host key, `SHA256:...`. Connections to any other key are refused |
 
-Every response starts with `[target: NAME — reason]` so you always know where a command ran.
+\* At least the panel (`AAPANEL_URL` + `AAPANEL_API_KEY`) or SSH (`VPS_SSH_KEY` or `VPS_SSH_PASSWORD`) must be configured. If neither SSH secret is set, the SSH tool is not registered.
 
-## 4. Connect it to an MCP client
-
-Replace `/ABSOLUTE/PATH/TO/mcp-aapanel` with the folder where you cloned the repo.
-
-With `npx` (option B), use this instead of `node` + path:
+Example client config (placeholders only):
 
 ```json
 {
@@ -235,40 +315,6 @@ With `npx` (option B), use this instead of `node` + path:
     "aapanel-vps": {
       "command": "npx",
       "args": ["-y", "github:CristhianBuiza/mcp-aapanel"],
-      "env": {
-        "AAPANEL_TARGETS_FILE": "/ABSOLUTE/PATH/TO/your/targets.json",
-        "VPS1_AAPANEL_KEY": "YOUR_API_KEY"
-      }
-    }
-  }
-}
-```
-
-### Cursor
-
-Add to `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` (per project):
-
-```json
-{
-  "mcpServers": {
-    "aapanel-vps": {
-      "command": "node",
-      "args": ["/ABSOLUTE/PATH/TO/mcp-aapanel/dist/index.js"]
-    }
-  }
-}
-```
-
-### Claude Desktop, VS Code and other clients
-
-Same shape. To pass secrets without a `.env` file:
-
-```json
-{
-  "mcpServers": {
-    "aapanel-vps": {
-      "command": "node",
-      "args": ["/ABSOLUTE/PATH/TO/mcp-aapanel/dist/index.js"],
       "env": {
         "AAPANEL_URL": "https://YOUR_SERVER_IP:7800",
         "AAPANEL_API_KEY": "YOUR_API_KEY",
@@ -280,15 +326,17 @@ Same shape. To pass secrets without a `.env` file:
 }
 ```
 
-Avoid committing a client config that contains real keys.
+To get a host fingerprint by hand: `ssh-keyscan YOUR_SERVER_IP | ssh-keygen -lf -`. Avoid committing a client config that contains real keys.
 
-### Quick test with the MCP Inspector
+### How a target is chosen
 
-```bash
-npx @modelcontextprotocol/inspector node dist/index.js
-```
+Every tool (except the `targets_*` helpers) accepts an optional `target` argument. When it is omitted:
 
-Call `targets_list`, then `aapanel_get_system_info` to confirm the connection. On startup the server logs the loaded targets to stderr, e.g. `aapanel-vps: 2 target(s) from targets.json: vps-1 (default), vps-2 (read-only)`.
+1. If the call is about a domain (for example a site `name`), the server looks for it in assignments made with `targets_assign_domain`, then in each target's `domains` list. The longest matching domain wins, so `shop.example.com` can live on a different server than `example.com`.
+2. Otherwise it searches each panel's website list for the domain (cached for 5 minutes).
+3. If nothing matches, the `default` target is used. If the domain exists on several servers, the call fails and asks for an explicit `target`.
+
+Every response starts with `[target: NAME — reason]` so you always know where a command ran.
 
 ---
 
@@ -409,8 +457,8 @@ Example raw tool call:
 
 ## Security notes
 
-- Keep `.env`, `targets.json` and `domain-map.json` out of version control (add them to `.gitignore`). Commit only `.env.example` and `targets.example.json` with placeholders.
-- Prefer `"env:VARIABLE"` references and SSH keys over inline passwords.
+- The setup wizard saves to your user config folder with permissions `600`, outside the repository. If you keep `.env`, `targets.json` or `domain-map.json` in a clone instead, they are already in `.gitignore`; commit only `.env.example` and `targets.example.json` with placeholders.
+- Prefer SSH keys over passwords, and consider `"env:VARIABLE"` references for secrets.
 - The panel API key and SSH credentials give full control of the server. Restrict the panel's IP whitelist and use a dedicated, least-privilege SSH user where possible.
 - Set `readOnly: true` (or `AAPANEL_READ_ONLY=true`) for servers the agent should only inspect. This disables `vps_ssh_exec` and `aapanel_api_call` too, since they can change anything.
 - Pin `hostFingerprint` to protect SSH against man-in-the-middle attacks.
@@ -420,7 +468,8 @@ Example raw tool call:
 
 | Symptom | Fix |
 | --- | --- |
-| `No targets configured` | Create `targets.json`, or set `AAPANEL_URL` + `AAPANEL_API_KEY` (and/or an SSH secret) |
+| `No servers configured yet` | Run `npx -y github:CristhianBuiza/mcp-aapanel setup` (or `npm run setup` in a clone), then reload the MCP server |
+| Setup's panel test fails | Check the URL (host and port), the API key, and that this machine's IP is in the panel's API whitelist |
 | `references unset variable X` | A `"env:X"` value in `targets.json` has no matching environment variable |
 | `Could not reach aaPanel ... SELF_SIGNED` / certificate errors | Set `AAPANEL_VERIFY_TLS=false` or `verifyTls: false` |
 | Panel returns an IP / token error | Add your public IP to the panel's API whitelist; check the API key; make sure the machine's clock is accurate (the token is time-based) |
@@ -435,7 +484,8 @@ Example raw tool call:
 ```bash
 npm install       # install dependencies and build (runs the prepare script)
 npm run build     # recompile TypeScript to dist/ after changes
-npm test          # build + end-to-end test against simulated panels
+npm test          # build + end-to-end test against simulated panels (includes the setup wizard)
+npm run setup     # guided configuration
 npm start         # run the server on stdio
 ```
 
@@ -444,10 +494,12 @@ Project layout:
 ```text
 .env.example          # single-server settings template (copy to .env)
 targets.example.json  # multi-server template (copy to targets.json)
-package.json          # scripts: build, prepare (build on install), test, start
+package.json          # scripts: build, prepare (build on install), setup, test, start
 src/
-  index.ts      # entry point: loads .env and config, registers tools, starts stdio transport
-  config.ts     # targets.json / environment parsing and validation, env: references
+  index.ts      # entry point: "setup" command, config resolution, registers tools, starts stdio
+  setup.ts      # guided setup wizard (asks, tests panel and SSH, saves targets file)
+  prompt.ts     # terminal prompts (hidden input for secrets)
+  config.ts     # targets file / environment parsing and validation, env: references, config folder
   targets.ts    # target registry, domain routing, site-list discovery, domain-map.json
   client.ts     # aaPanel API client (signed requests, cookies, TLS options)
   ssh.ts        # SSH command runner with host-key pinning

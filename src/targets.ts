@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
 import { AaPanelClient } from "./client.js";
 import type { LoadedConfig, TargetConfig } from "./config.js";
 import { SshRunner } from "./ssh.js";
@@ -192,6 +193,7 @@ export class TargetRegistry {
   }
 
   private saveAssignments() {
+    mkdirSync(dirname(this.assignmentsFile), { recursive: true });
     writeFileSync(this.assignmentsFile, `${JSON.stringify(this.assignments, null, 2)}\n`);
   }
 }

@@ -1,7 +1,8 @@
 // End-to-end test: starts fake aaPanel instances and drives the built MCP server over stdio.
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -214,6 +215,50 @@ writeFileSync(
   writeFileSync(badFile, JSON.stringify({ default: "x", targets: [{ name: "vps-1" }] }));
   await check("invalid default target fails at startup", async () => {
     await assert.rejects(connect({ AAPANEL_TARGETS_FILE: badFile }));
+  });
+}
+
+// --- Guided setup ---
+function runSetup(env, answers) {
+  return new Promise((resolve) => {
+    const child = spawn(process.execPath, [serverEntry, "setup"], { env: { PATH: process.env.PATH, ...env } });
+    let out = "";
+    child.stdout.on("data", (c) => (out += c));
+    child.stderr.on("data", (c) => (out += c));
+    child.on("close", (code) => resolve({ code, out }));
+    child.stdin.end(answers.map((a) => `${a}\n`).join(""));
+  });
+}
+{
+  const setupFile = join(dir, "setup", "targets.json");
+  // name, description, panel URL, API key, test panel, SSH?, read-only, domains, add another
+  const run = await runSetup({ AAPANEL_TARGETS_FILE: setupFile }, ["", "", panel1.url, "key-one", "", "", "", "a.com", ""]);
+  await check("setup: tests the panel and saves a private targets file", () => {
+    assert.equal(run.code, 0, run.out);
+    assert.match(run.out, /Panel connected/);
+    assert.equal(statSync(setupFile).mode & 0o777, 0o600);
+    const saved = JSON.parse(readFileSync(setupFile, "utf8"));
+    assert.equal(saved.default, "vps-1");
+    assert.deepEqual(saved.targets[0].aapanel, { url: panel1.url, apiKey: "key-one", verifyTls: false });
+    assert.deepEqual(saved.targets[0].domains, ["a.com"]);
+    assert.ok(!run.out.includes("key-one"), "API key must not be echoed");
+  });
+  const { client, call } = await connect({ AAPANEL_TARGETS_FILE: setupFile });
+  await check("setup: server starts from the saved file", async () => {
+    const r = await call("aapanel_list_sites");
+    assert.equal(r.isError, false);
+    assert.equal(r.target, "vps-1");
+  });
+  await client.close();
+}
+{
+  const setupFile = join(dir, "setup-retry", "targets.json");
+  const answers = ["", "", panel1.url, "wrong", "", "", "", "key-one", "", "", "", "", ""];
+  const run = await runSetup({ AAPANEL_TARGETS_FILE: setupFile }, answers);
+  await check("setup: a rejected API key is reported and can be corrected", () => {
+    assert.equal(run.code, 0, run.out);
+    assert.match(run.out, /Panel test failed: .*verification failed/);
+    assert.equal(JSON.parse(readFileSync(setupFile, "utf8")).targets[0].aapanel.apiKey, "key-one");
   });
 }
 

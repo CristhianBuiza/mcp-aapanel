@@ -23,6 +23,9 @@ const fingerprintOf = (key: Buffer) =>
   `SHA256:${createHash("sha256").update(key).digest("base64").replace(/=+$/, "")}`;
 
 export class SshRunner {
+  /** Host key fingerprint presented by the server on the last connection attempt. */
+  lastHostFingerprint?: string;
+
   constructor(readonly options: SshOptions) {}
 
   exec(command: string, timeoutMs: number): Promise<ExecResult> {
@@ -37,6 +40,7 @@ export class SshRunner {
       readyTimeout: 20_000,
       hostVerifier: (key: Buffer) => {
         presentedFingerprint = fingerprintOf(key);
+        this.lastHostFingerprint = presentedFingerprint;
         return !hostFingerprint || presentedFingerprint === hostFingerprint;
       },
     };

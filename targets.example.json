@@ -1,0 +1,41 @@
+{
+  "default": "vps-1",
+  "targets": [
+    {
+      "name": "vps-1",
+      "description": "Main server",
+      "aapanel": {
+        "url": "https://203.0.113.10:7800",
+        "apiKey": "env:VPS1_AAPANEL_KEY",
+        "verifyTls": false
+      },
+      "ssh": {
+        "user": "root",
+        "password": "env:VPS1_SSH_PASSWORD",
+        "hostFingerprint": "SHA256:YOUR_HOST_KEY_FINGERPRINT"
+      },
+      "domains": ["example.com", "example.net"]
+    },
+    {
+      "name": "vps-2",
+      "description": "Second server",
+      "readOnly": false,
+      "aapanel": {
+        "url": "https://198.51.100.20:8888",
+        "apiKey": "env:VPS2_AAPANEL_KEY"
+      },
+      "ssh": {
+        "host": "198.51.100.20",
+        "port": 2222,
+        "user": "admin",
+        "keyPath": "/path/to/.ssh/id_ed25519_vps2"
+      },
+      "domains": ["other-site.com"]
+    },
+    {
+      "name": "vps-3",
+      "description": "Plain VPS without aaPanel (SSH only)",
+      "ssh": { "host": "192.0.2.30", "user": "root", "keyPath": "/path/to/.ssh/id_ed25519" }
+    }
+  ]
+}

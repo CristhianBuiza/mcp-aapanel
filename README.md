@@ -67,17 +67,25 @@ On each panel:
 
 4. Note the panel URL as **protocol, host and port only**, for example `https://YOUR_SERVER_IP:7800`. Do **not** include the "security entry" path you use to log in from the browser.
 
-## 2. Install and build
+## 2. Install
+
+`npm install` installs the dependencies **and** compiles the TypeScript (via the `prepare` script), so a single command is enough.
+
+### Option A: clone (recommended)
 
 ```bash
-git clone https://github.com/YOUR_GITHUB_USER/mcp-aapanel.git
-cd mcp-aapanel
-npm install
-npm run build
-npm test        # optional: end-to-end test against simulated panels
+git clone https://github.com/CristhianBuiza/mcp-aapanel.git && cd mcp-aapanel && npm install
 ```
 
-The compiled entry point is `dist/index.js`.
+Optionally run `npm test` for an end-to-end test against simulated panels (no real server needed). The compiled entry point is `dist/index.js`. With this option, `.env`, `targets.json` and `domain-map.json` live next to the code.
+
+### Option B: global install, one command
+
+```bash
+npm install -g github:CristhianBuiza/mcp-aapanel
+```
+
+This puts an `aapanel-vps` command on your `PATH`. Because the package lives inside npm's global folder, pass settings through the MCP client's `env` block, and point `AAPANEL_TARGETS_FILE` (and optionally `AAPANEL_DOMAIN_MAP_FILE` and `AAPANEL_ENV_FILE`) at files in a folder you control.
 
 ## 3. Configuration
 
@@ -216,6 +224,22 @@ Every response starts with `[target: NAME — reason]` so you always know where 
 ## 4. Connect it to an MCP client
 
 Replace `/ABSOLUTE/PATH/TO/mcp-aapanel` with the folder where you cloned the repo.
+
+If you used the global install (option B), use `"command": "aapanel-vps"` with no `args` instead of `node` + path, for example:
+
+```json
+{
+  "mcpServers": {
+    "aapanel-vps": {
+      "command": "aapanel-vps",
+      "env": {
+        "AAPANEL_TARGETS_FILE": "/ABSOLUTE/PATH/TO/your/targets.json",
+        "VPS1_AAPANEL_KEY": "YOUR_API_KEY"
+      }
+    }
+  }
+}
+```
 
 ### Cursor
 
@@ -406,8 +430,8 @@ Example raw tool call:
 ## Development
 
 ```bash
-npm install
-npm run build     # compile TypeScript to dist/
+npm install       # install dependencies and build (runs the prepare script)
+npm run build     # recompile TypeScript to dist/ after changes
 npm test          # build + end-to-end test against simulated panels
 npm start         # run the server on stdio
 ```
@@ -415,6 +439,9 @@ npm start         # run the server on stdio
 Project layout:
 
 ```text
+.env.example          # single-server settings template (copy to .env)
+targets.example.json  # multi-server template (copy to targets.json)
+package.json          # scripts: build, prepare (build on install), test, start
 src/
   index.ts      # entry point: loads .env and config, registers tools, starts stdio transport
   config.ts     # targets.json / environment parsing and validation, env: references

@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>mcp-aapanel: aaPanel and your VPS for AI agents over MCP</title>
+  <meta name="description" content="An MCP server that lets AI agents manage one or more aaPanel servers through the panel API and the VPS over SSH: sites, SSL, files, databases, cron and services.">
+  <meta property="og:title" content="mcp-aapanel">
+  <meta property="og:description" content="Manage aaPanel servers from any MCP client: Cursor, Claude Desktop, VS Code and more.">
+  <meta property="og:image" content="screenshots/setup.png">
+  <link rel="stylesheet" href="style.css">
+  <style>:root { --accent: #2563eb; --accent-strong: #1d4ed8; --accent-soft: rgba(37, 99, 235, .11); }</style>
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <a class="brand" href="#"><span class="logo">aa</span> mcp-aapanel</a>
+      <nav>
+        <a href="#how">How it works</a>
+        <a href="#features">Features</a>
+        <a href="#setup">Setup</a>
+        <a href="#screenshots">Screenshots</a>
+        <a href="https://github.com/CristhianBuiza/mcp-aapanel">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <div class="hero">
+      <div class="wrap">
+        <span class="eyebrow">Model Context Protocol server</span>
+        <h1>Your aaPanel servers, operated by your AI agent.</h1>
+        <p class="lead">mcp-aapanel connects Cursor, Claude Desktop, VS Code or any MCP client to one or more aaPanel servers through the panel API, and to each VPS over SSH. Agents can manage websites, domains, SSL, files, databases, cron jobs and services, with read-only mode for production.</p>
+        <div class="install">
+          <code id="cmd">npx -y github:CristhianBuiza/mcp-aapanel setup</code>
+          <button class="copy" data-copy="cmd">Copy</button>
+        </div>
+        <p class="install-note">Needs Node.js 21.7+. The guided setup asks for each server's panel URL, API key and optional SSH login, tests them and saves them privately.</p>
+        <div class="cta">
+          <a class="btn primary" href="https://github.com/CristhianBuiza/mcp-aapanel">View on GitHub</a>
+          <a class="btn" href="https://github.com/CristhianBuiza/mcp-aapanel#readme">Read the docs</a>
+        </div>
+      </div>
+    </div>
+
+    <section id="how">
+      <div class="wrap">
+        <h2>How it works</h2>
+        <p class="sub">The server runs on your machine and speaks MCP over stdio. Each call is routed to the right server (explicitly, or from the domain it is about), signed with that panel's API key, or run over SSH.</p>
+        <div class="flow">
+          <div class="node"><strong>Your MCP client</strong><span>Cursor, Claude Desktop, VS Code, custom agents</span></div>
+          <div class="arrow">stdio</div>
+          <div class="node mid"><strong>mcp-aapanel</strong><span>37 tools, multi-server routing, read-only targets</span></div>
+          <div class="arrow">HTTPS · SSH</div>
+          <div class="node"><strong>aaPanel + VPS</strong><span>One or many servers, panel API and shell</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="features">
+      <div class="wrap">
+        <h2>Features</h2>
+        <p class="sub">Dedicated tools for the common panel tasks, plus a raw API call and SSH for everything else.</p>
+        <div class="grid">
+          <div class="card"><h3><span class="ico">▦</span>Websites</h3><p>List, create (with FTP and MySQL), delete, start/stop, change PHP version, bind domains and take backups.</p></div>
+          <div class="card"><h3><span class="ico">⛨</span>SSL</h3><p>Read certificate status with the private key redacted, install a custom certificate, and toggle forced HTTPS.</p></div>
+          <div class="card"><h3><span class="ico">▤</span>Files &amp; logs</h3><p>Browse directories and read or write files such as nginx vhosts and site logs.</p></div>
+          <div class="card"><h3><span class="ico">◫</span>Databases, FTP, cron</h3><p>Manage MySQL databases, list FTP accounts, and add, run or delete scheduled tasks.</p></div>
+          <div class="card"><h3><span class="ico">⇶</span>Multi-server routing</h3><p>Name each server. Calls about <code>shop.example.com</code> go to the server that hosts it, automatically.</p></div>
+          <div class="card"><h3><span class="ico">&gt;_</span>SSH &amp; raw API</h3><p><code>vps_ssh_exec</code> runs shell commands; <code>aapanel_api_call</code> reaches any panel endpoint.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="setup">
+      <div class="wrap">
+        <h2>Setup in four steps</h2>
+        <p class="sub">No config files to write by hand: the setup command asks for each value, tests the panel and SSH, and stores everything in a file only you can read, outside any repository.</p>
+        <div class="steps">
+          <div class="step"><div>
+            <h3>Enable the aaPanel API</h3>
+            <p>In each panel open <strong>Settings &gt; API interface</strong>, enable it, copy the key and add your machine's public IP to the whitelist. aaPanel's API uses this key, not your panel username and password.</p>
+            <pre>curl https://api.ipify.org   <span class="c"># shows the IP to whitelist</span></pre>
+          </div></div>
+          <div class="step"><div>
+            <h3>Run the guided setup</h3>
+            <p>For each server it asks for a name, the panel URL and API key (hidden), TLS verification, optional SSH host, user and key or password, read-only mode and hosted domains. It tests each connection and can pin the SSH host key.</p>
+            <pre>npx -y github:CristhianBuiza/mcp-aapanel setup</pre>
+          </div></div>
+          <div class="step"><div>
+            <h3>Add it to your MCP client</h3>
+            <p>Setup prints this snippet. For Cursor, paste it into <code>~/.cursor/mcp.json</code>. No secrets go in the client config.</p>
+            <pre>{
+  "mcpServers": {
+    "aapanel-vps": { "command": "npx", "args": ["-y", "github:CristhianBuiza/mcp-aapanel"] }
+  }
+}</pre>
+          </div></div>
+          <div class="step"><div>
+            <h3>Reload and ask</h3>
+            <p>Reload MCP servers in your client and try: <em>"Show CPU, memory and disk on vps-1"</em> or <em>"Enable forced HTTPS on example.com"</em>. Run setup again any time to add more servers.</p>
+          </div></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="screenshots">
+      <div class="wrap">
+        <h2>Screenshots</h2>
+        <p class="sub">Real output from the server, captured from a throwaway install.</p>
+        <p class="shots-note">These were captured by running the actual server from GitHub against two simulated aaPanel APIs on localhost, with placeholder credentials (<code>YOUR_API_KEY</code>, <code>YOUR_SSH_PASSWORD</code>) and documentation-only IPs and domains.</p>
+        <div class="shots">
+          <figure>
+            <img src="screenshots/setup.png" alt="Terminal running the mcp-aapanel setup wizard: server name, panel URL, hidden API key, connection test, SSH settings, read-only and domains" loading="lazy" width="1800" height="1841">
+            <figcaption><strong>Guided setup.</strong> One question at a time; secrets are hidden, the panel connection is tested, and the client snippet is printed at the end.</figcaption>
+          </figure>
+          <figure>
+            <img src="screenshots/tools.png" alt="Grid of the 37 tools exposed by mcp-aapanel, each marked read-only, writes or destructive" loading="lazy" width="1800" height="1257">
+            <figcaption><strong>Tool list as an MCP client sees it.</strong> All 37 tools with their read-only, write or destructive hints.</figcaption>
+          </figure>
+          <figure>
+            <img src="screenshots/routing.png" alt="Tool calls: targets_list showing two servers, targets_find_domain routing shop.example.net to vps-2, and a backup rejected because vps-2 is read-only" loading="lazy" width="1800" height="1854">
+            <figcaption><strong>Multi-server routing and read-only protection.</strong> Two configured servers, a subdomain resolved to the server that hosts it, and a write blocked on the read-only server.</figcaption>
+          </figure>
+          <figure>
+            <img src="screenshots/calls.png" alt="Tool calls: aapanel_list_sites and aapanel_get_system_info responses, each prefixed with the target that handled them" loading="lazy" width="1800" height="1755">
+            <figcaption><strong>Sample tool calls.</strong> Every response starts with the server that handled it and why it was chosen.</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section id="safety">
+      <div class="wrap">
+        <h2>Built to be safe</h2>
+        <p class="sub">Panel keys and SSH logins give full control of a server, so the server gives you ways to limit what an agent can do.</p>
+        <ul class="checks">
+          <li><strong>Private settings file.</strong> Saved with permissions 600 in your user config folder, never inside a repository.</li>
+          <li><strong>Read-only servers.</strong> Mark production read-only and every write, SSH and raw API tool is refused there.</li>
+          <li><strong>SSH host-key pinning.</strong> Setup offers to pin the server's key; connections to any other key are refused.</li>
+          <li><strong>Redacted secrets.</strong> SSL private keys are hidden unless requested, and <code>targets_list</code> never returns credentials.</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>mcp-aapanel · <a href="https://github.com/CristhianBuiza/mcp-aapanel">Source on GitHub</a></span>
+      <span>Independent project, not affiliated with or endorsed by aaPanel.</span>
+    </div>
+  </footer>
+
+  <script>
+    document.querySelectorAll("[data-copy]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        await navigator.clipboard.writeText(document.getElementById(button.dataset.copy).textContent);
+        button.textContent = "Copied";
+        setTimeout(() => (button.textContent = "Copy"), 1500);
+      });
+    });
+  </script>
+</body>
+</html>

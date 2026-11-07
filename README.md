@@ -79,13 +79,15 @@ git clone https://github.com/CristhianBuiza/mcp-aapanel.git && cd mcp-aapanel &&
 
 Optionally run `npm test` for an end-to-end test against simulated panels (no real server needed). The compiled entry point is `dist/index.js`. With this option, `.env`, `targets.json` and `domain-map.json` live next to the code.
 
-### Option B: global install, one command
+### Option B: no clone, run with `npx`
+
+Your MCP client can fetch, build and start the server straight from GitHub:
 
 ```bash
-npm install -g github:CristhianBuiza/mcp-aapanel
+npx -y github:CristhianBuiza/mcp-aapanel
 ```
 
-This puts an `aapanel-vps` command on your `PATH`. Because the package lives inside npm's global folder, pass settings through the MCP client's `env` block, and point `AAPANEL_TARGETS_FILE` (and optionally `AAPANEL_DOMAIN_MAP_FILE` and `AAPANEL_ENV_FILE`) at files in a folder you control.
+npm caches the build, so later starts are fast. Because the package lives in npm's cache, pass settings through the MCP client's `env` block, and point `AAPANEL_TARGETS_FILE` (and optionally `AAPANEL_DOMAIN_MAP_FILE` and `AAPANEL_ENV_FILE`) at files in a folder you control.
 
 ## 3. Configuration
 
@@ -225,13 +227,14 @@ Every response starts with `[target: NAME — reason]` so you always know where 
 
 Replace `/ABSOLUTE/PATH/TO/mcp-aapanel` with the folder where you cloned the repo.
 
-If you used the global install (option B), use `"command": "aapanel-vps"` with no `args` instead of `node` + path, for example:
+With `npx` (option B), use this instead of `node` + path:
 
 ```json
 {
   "mcpServers": {
     "aapanel-vps": {
-      "command": "aapanel-vps",
+      "command": "npx",
+      "args": ["-y", "github:CristhianBuiza/mcp-aapanel"],
       "env": {
         "AAPANEL_TARGETS_FILE": "/ABSOLUTE/PATH/TO/your/targets.json",
         "VPS1_AAPANEL_KEY": "YOUR_API_KEY"

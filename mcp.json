@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "aapanel-vps": {
+      "command": "npx",
+      "args": ["-y", "github:CristhianBuiza/mcp-aapanel"],
+      "env": {
+        "AAPANEL_URL": "${AAPANEL_URL}",
+        "AAPANEL_API_KEY": "${AAPANEL_API_KEY}",
+        "AAPANEL_VERIFY_TLS": "${AAPANEL_VERIFY_TLS}",
+        "AAPANEL_READ_ONLY": "${AAPANEL_READ_ONLY}",
+        "VPS_SSH_HOST": "${VPS_SSH_HOST}",
+        "VPS_SSH_USER": "${VPS_SSH_USER}",
+        "VPS_SSH_KEY": "${VPS_SSH_KEY}",
+        "VPS_SSH_PASSWORD": "${VPS_SSH_PASSWORD}"
+      }
+    }
+  }
+}

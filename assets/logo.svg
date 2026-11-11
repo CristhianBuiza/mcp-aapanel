@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="aaPanel VPS MCP">
+  <rect width="128" height="128" rx="28" fill="#111827"/>
+  <rect x="24" y="36" width="80" height="56" rx="10" fill="#1F2937" stroke="#34D399" stroke-width="4"/>
+  <circle cx="44" cy="64" r="6" fill="#34D399"/>
+  <circle cx="64" cy="64" r="6" fill="#6EE7B7"/>
+  <circle cx="84" cy="64" r="6" fill="#A7F3D0"/>
+  <path d="M40 104 h48" stroke="#9CA3AF" stroke-width="6" stroke-linecap="round"/>
+</svg>

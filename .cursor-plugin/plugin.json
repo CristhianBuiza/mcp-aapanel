@@ -1,0 +1,71 @@
+{
+  "name": "aapanel-vps",
+  "version": "1.1.0",
+  "description": "MCP server to manage aaPanel servers via the panel API and their VPS over SSH: sites, domains, SSL, files, databases, cron and services.",
+  "author": {
+    "name": "Cristhian Buiza",
+    "email": "cbuiza@users.noreply.github.com"
+  },
+  "homepage": "https://github.com/CristhianBuiza/mcp-aapanel",
+  "repository": "https://github.com/CristhianBuiza/mcp-aapanel",
+  "license": "ISC",
+  "keywords": [
+    "mcp",
+    "aapanel",
+    "vps",
+    "ssh",
+    "hosting"
+  ],
+  "logo": "assets/logo.svg",
+  "variables": {
+    "type": "object",
+    "properties": {
+      "AAPANEL_URL": {
+        "type": "string",
+        "title": "aaPanel URL",
+        "description": "Panel base URL, e.g. https://YOUR_SERVER_IP:7800 (no security-entry path)."
+      },
+      "AAPANEL_API_KEY": {
+        "type": "string",
+        "title": "aaPanel API key",
+        "description": "Interface key from Settings → API interface."
+      },
+      "AAPANEL_VERIFY_TLS": {
+        "type": "string",
+        "title": "Verify TLS",
+        "description": "Set to \"false\" when the panel uses the default self-signed certificate.",
+        "default": "false",
+        "enum": ["true", "false"]
+      },
+      "AAPANEL_READ_ONLY": {
+        "type": "string",
+        "title": "Read-only mode",
+        "description": "Set to \"true\" to expose only read tools.",
+        "default": "false",
+        "enum": ["false", "true"]
+      },
+      "VPS_SSH_HOST": {
+        "type": "string",
+        "title": "SSH host",
+        "description": "VPS hostname or IP (defaults to the host from AAPANEL_URL if empty)."
+      },
+      "VPS_SSH_USER": {
+        "type": "string",
+        "title": "SSH user",
+        "description": "SSH username (default: root).",
+        "default": "root"
+      },
+      "VPS_SSH_KEY": {
+        "type": "string",
+        "title": "SSH private key path",
+        "description": "Absolute path to the SSH private key file. Prefer this over password."
+      },
+      "VPS_SSH_PASSWORD": {
+        "type": "string",
+        "title": "SSH password",
+        "description": "SSH password if not using a key. Leave empty when using VPS_SSH_KEY."
+      }
+    },
+    "required": ["AAPANEL_URL", "AAPANEL_API_KEY"]
+  }
+}
